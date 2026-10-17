@@ -1,0 +1,135 @@
+# Databricks Asset Bundle Configuration
+# STATUS: undeployed draft — notebook paths (./pipelines/*), the wheel build, and
+# the job_clusters classic-cluster spec do NOT match the current project and would
+# need rework (serverless has no new_cluster) before `databricks bundle validate` passes.
+# The real pipeline runs as the existing workspace Job (manual runs only).
+# Deploy with: databricks bundle deploy --target dev
+
+bundle:
+  name: ecommerce_pipeline
+
+include:
+  - resources/*.yml
+
+workspace:
+  host: https://your-workspace.cloud.databricks.com  # replace with your workspace URL before deploying
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: ecommerce_prod
+  
+  warehouse_id:
+    description: SQL Warehouse ID
+    default: "" # Fill in your warehouse ID
+
+artifacts:
+  utils:
+    type: whl
+    path: ./utils
+    build: python setup.py bdist_wheel
+
+resources:
+  jobs:
+    ecommerce_pipeline:
+      name: "Ecommerce Data Pipeline - ${bundle.target}"
+      
+      job_clusters:
+        - job_cluster_key: main_cluster
+          new_cluster:
+            spark_version: 14.3.x-scala2.12
+            node_type_id: i3.xlarge
+            num_workers: 2
+            spark_conf:
+              spark.databricks.cluster.profile: serverless
+      
+      tasks:
+        # Task 0: Run Tests First
+        - task_key: run_tests
+          job_cluster_key: main_cluster
+          python_wheel_task:
+            package_name: pipeline_utils
+            entry_point: run_tests
+          libraries:
+            - whl: ./utils/dist/*.whl
+        
+        # Task 1: Bronze Layer
+        - task_key: bronze_ingestion
+          depends_on:
+            - task_key: run_tests
+          job_cluster_key: main_cluster
+          notebook_task:
+            notebook_path: ./pipelines/02_Bronze
+            source: WORKSPACE
+        
+        # Task 2: Silver Layer
+        - task_key: silver_transformation
+          depends_on:
+            - task_key: bronze_ingestion
+          job_cluster_key: main_cluster
+          notebook_task:
+            notebook_path: ./pipelines/03_Silver
+            source: WORKSPACE
+        
+        # Task 3: Gold Layer
+        - task_key: gold_aggregation
+          depends_on:
+            - task_key: silver_transformation
+          job_cluster_key: main_cluster
+          notebook_task:
+            notebook_path: ./pipelines/04_Gold
+            source: WORKSPACE
+        
+        # Task 4: Optimization
+        - task_key: optimize_tables
+          depends_on:
+            - task_key: gold_aggregation
+          job_cluster_key: main_cluster
+          notebook_task:
+            notebook_path: ./pipelines/05_Optimization
+            source: WORKSPACE
+      
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"  # Daily at 2 AM
+        timezone_id: "America/Los_Angeles"
+        pause_status: UNPAUSED
+      
+      email_notifications:
+        on_failure:
+          - your-email@example.com
+        on_success:
+          - your-email@example.com      
+      max_concurrent_runs: 1
+      timeout_seconds: 7200  # 2 hours
+
+# Environment-specific configurations
+targets:
+  dev:
+    mode: development
+    workspace:
+      root_path: /Workspace/Users/swanandikamat18@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: ecommerce_dev
+  
+  staging:
+    mode: development
+    workspace:
+      root_path: /Workspace/Users/swanandikamat18@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: ecommerce_staging
+  
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: ecommerce_prod
+    
+    # Production-only: require approval
+    run_as:
+      service_principal_name: "ecommerce-pipeline-sp"
+    
+    permissions:
+      - level: CAN_VIEW
+        group_name: "data-team"
+      - level: CAN_MANAGE
+        group_name: "data-engineering"
