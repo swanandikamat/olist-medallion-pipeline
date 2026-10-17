@@ -1,0 +1,88 @@
+# Pipeline Configuration
+# This file contains all pipeline settings and parameters
+
+# Unity Catalog Configuration
+catalog:
+  name: ecommerce_prod
+  schemas:
+    bronze: bronze
+    silver: silver
+    gold: gold
+
+# Data Sources
+data_sources:
+  orders:
+    path: "/Workspace/Users/swanandikamat18@gmail.com/Project/Data/olist_orders_dataset.csv"
+    format: csv
+    options:
+      header: true
+      inferSchema: true
+  
+  customers:
+    path: "/Workspace/Users/swanandikamat18@gmail.com/Project/Data/olist_customers_dataset.csv"
+    format: csv
+    options:
+      header: true
+      inferSchema: true
+
+  products:
+    path: "/Workspace/Users/swanandikamat18@gmail.com/Project/Data/olist_products_dataset.csv"
+    format: csv
+    options:
+      header: true
+      inferSchema: true
+
+# Pipeline Settings
+pipeline:
+  # Incremental load settings
+  incremental:
+    enabled: true
+    watermark_column: ingestion_time
+    checkpoint_location: "/checkpoints/ecommerce/"
+  
+  # Data Quality Thresholds
+  data_quality:
+    max_null_percentage: 5  # Fail if more than 5% nulls
+    min_row_count: 1000
+    duplicate_check: true
+  
+  # Performance Settings
+  optimization:
+    auto_optimize: true
+    z_order_columns:
+      gold_product_sales: ["product_category", "order_date"]
+      gold_customer_metrics: ["customer_state", "order_date"]
+    partition_columns:
+      gold_daily_sales: ["order_date"]
+      gold_monthly_sales: ["year", "month"]
+
+# Alerting Configuration
+alerting:
+  email_recipients:
+    - "your-email@example.com"
+  slack_webhook: ""
+  alert_on:
+    - pipeline_failure
+    - data_quality_failure
+    - sla_breach
+
+# Retention Policy
+retention:
+  bronze: 90  # days
+  silver: 180 # days
+  gold: 730   # days (2 years)
+
+# Environment-specific overrides
+environments:
+  dev:
+    catalog: ecommerce_dev
+    compute: "Shared"
+  
+  staging:
+    catalog: ecommerce_staging
+    compute: "Standard"
+  
+  prod:
+    catalog: ecommerce_prod
+    compute: "Serverless"
+    enable_monitoring: true

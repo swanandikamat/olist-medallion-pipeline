@@ -1,0 +1,4 @@
+Data/
+analytics_charts/
+*.csv
+__pycache__/
