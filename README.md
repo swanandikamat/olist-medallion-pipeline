@@ -2,7 +2,7 @@
 
 End-to-end data engineering project: raw Brazilian e-commerce CSVs → Bronze → Silver → Gold Delta tables → SQL analytics, Python charts, and data-quality gates — built and verified on **Databricks Free Edition (serverless compute)**.
 
-**Honest scope up front:** this is a portfolio/learning project, not a production deployment. There is no CI/CD, no incremental ingestion, no scheduled runs, and no physical table optimization (each measured as unnecessary or unavailable at this data scale — see [Limitations](#limitations)). Every claim below was measured or executed in the workspace.
+**Honest scope up front:** this is a learning project, not a production deployment. There is no CI/CD, no incremental ingestion, no scheduled runs, and no physical table optimization (each measured as unnecessary or unavailable at this data scale — see [Limitations](#limitations)). Every claim below was measured or executed in the workspace.
 
 ## Architecture
 
@@ -270,16 +270,3 @@ qc.save_results()
 ```
 
 ---
-
-## 📞 Support & Questions
-
-For questions or issues:
-1. Check the Feature Status and Limitations sections of this README
-2. Run 08_Pipeline_Monitoring for pipeline health
-3. Check data_quality_logs table for quality issues
-4. Open a GitHub issue on the repo (pipeline data issues should surface through the quality gates, not manual inspection)
-
----
-
-*Last verified: 2026-10-10 - every number in this README was measured in the build workspace*  
-*Maintained by the author - reach out via GitHub issues on the repo. Code license: MIT; the Olist dataset is not covered (see Kaggle terms)*
